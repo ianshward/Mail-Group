@@ -1,0 +1,194 @@
+<?php
+
+
+/**
+ * Assigns OG id and type to incoming message based on group feature's settings
+ * 
+ * @param $node
+ *   Object - node object
+ * @param $result
+ * @param $i
+ * @param $header
+ * @param $mailbox
+ * @return unknown_type
+ */
+function mailgroup_mailhandler($node, $result, $i, $header, $mailbox) {
+  $groupname = mailgroup_parse_groupname($header);
+  $groupinfo = mailgroup_group_settings($groupname);
+  if ($groupinfo['id'] && $groupinfo['type']) {
+    // The $node->uid should be set by now using mailhandler authentication API
+    if (og_is_group_member($groupinfo['id'], TRUE, $node->uid)) {
+      $node->og_groups[$groupinfo['id']] = $groupinfo['id'];
+      $node->type = $groupinfo['type'];
+    }
+  }
+  return $node; 
+}
+
+/**
+ * Parses the group name from the "to" address and returns it.
+ * 
+ * @param $header
+ *   Object - email header object
+ * 
+ * @return
+ *   String - the name of the group
+ */
+function mailgroup_parse_groupname($header) {
+  $mailbox = $header->to[0]->mailbox;
+  return substr($mailbox, strpos($mailbox, "-") +1);
+}
+
+/**
+ * Returns the group id based on a group name string.
+ * 
+ * @param $groupname
+ *   String - name of group prefix for email address, parsed from mailgroup_parse_groupname()
+ *   
+ * @return
+ *   Array - contains group id and mailgroup settings.
+ */
+function mailgroup_group_settings($groupname) {
+  // TODO: mailgroup should have its own schema, this will get expensive w/ lots of groups.
+  $query = db_query("SELECT id FROM {purl} WHERE provider = 'spaces_og'");
+  while ($id = db_result($query)) {
+    $space = spaces_load('og', $id);
+    $address = $space->controllers->variable->get('mailgroup_address');
+    if ($address === $groupname) {
+      $type = $space->controllers->variable->get('mailgroup_type');
+      $name = $space->group->title; 
+      return array('id' => $space->id, 'type' => $type, 'name' => $name);
+    }
+  }
+}
+
+function mailgroup_block($op = 'list', $delta = 0) {
+  // provide block (for user dashboard) to show user simplelist details, 
+  // "You can create new %type posts by sending to %token-group address" and a link to reset token address
+  switch ($op) {
+    case 'list':
+      $blocks['info'] = array('info' => t('MailGroup Information'));
+      return $blocks;
+    case 'view':
+      switch ($delta) {
+        case 'info':
+          $blocks['subject'] = t('Post via email');
+          $blocks['content'] = mailgroup_block_information();
+      }
+      return $blocks;
+  }
+}
+
+function mailgroup_menu() {
+  $items = array();
+  $items['features/mailgroup'] = array(
+    'title' => 'Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mailgroup_features_settings'),
+    'access callback' => 'spaces_access_admin',
+    'access arguments' => array(),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/settings/mailgroup'] = array(
+    'title' => 'MailGroup Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('mailgroup_global_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['mailgroup'] = array(
+    'title' => 'Mail Group',
+    'page callback' => 'mailgroup_page',
+    'page arguments' => array(),
+    'access callback' => 'spaces_access_feature',
+    'access arguments' => array('view', 'mailgroup'),
+    'type' => MENU_NORMAL_ITEM,
+    'menu_name' => 'features',
+  );
+  return $items;
+}
+
+function mailgroup_features_settings() {
+  /* 
+   * setting to configure email catchall name (default is based off of group title)
+   * setting to define default content type
+   */
+  $form = array();
+  $form['mailgroup'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('MailGroup Settings'),
+  );
+  $form['mailgroup']['mailgroup_address'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Address prefix'),
+    '#description' => 'Define an address prefix.  The final "to" address for the group will be an address like
+      "sd89dk22-foo@example.com" where "sd89dk22" is an automatically created token and "foo" is the address prefix.
+      ',
+    '#default_value' => variable_get('mailgroup_address', ''),
+  );
+  // @TODO get only the group_post_standards that are for content types of features ENABLED in the given group.
+  // TODO refactor this loop
+  $og_types = og_get_types('group_post_standard');
+  $types = array();
+  foreach ($og_types as $type) {
+    $types[$type] = $type;
+  }
+  
+  $form['mailgroup']['mailgroup_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Content type'),
+    '#description' => t(''),
+    '#default_value' => variable_get('mailgroup_type', ''),
+    '#options' => $types,
+  );
+  return system_settings_form($form);
+}
+
+function mailgroup_global_settings() {
+  $form = array();
+  $form['mailgroup'] = array(
+    '#title' => t('MailGroup Global Settings'),
+    '#type' => 'fieldset',
+  );
+  $form['mailgroup']['mailgroup_mailbox'] = array(
+    '#title' => t('MailGroup Master Address'),
+    '#type' => 'select',
+    '#options' => mailcomment_mailbox_list(),
+    '#required' => TRUE,
+    '#default_value' => variable_get('mailgroup_mailbox', ''),
+    '#description' => t('The mailbox to base all MailGroup mailboxes off of.'),
+  );
+  return system_settings_form($form);
+}
+
+function mailgroup_message_alter(&$message, $info) {
+  // TODO: Alter the subject to include group name, like [Development Seed] [DSI] or [Development Seed] [WFP]
+  // check whether mailcomment variable is set for subject alters
+  // if it is, determine group
+  // insert [foo] ... this could be another setting the user can decide.
+  
+}
+
+function mailgroup_block_information() {
+  if (($space = spaces_get_space()) && $space->type == 'og') {
+    global $user;
+    $token = tokenauth_get_token($user->uid);
+    $type = $space->controllers->variable->get('mailgroup_type');
+    $prefix = $space->controllers->variable->get('mailgroup_address');
+    $gaddress = variable_get('mailgroup_mailbox', '');
+    if ($token && $type && $address && $gaddress) {
+      $address = "$token-$prefix@$gaddress";
+      $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $address));
+      return $content;
+    }
+  }
+  return FALSE;
+}
+
+function mailgroup_page() {
+  return 'foo';
+}
+
+
+
+

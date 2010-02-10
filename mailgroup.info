@@ -1,0 +1,8 @@
+core = "6.x"
+dependencies[] = "context"
+dependencies[] = "features"
+description = "Send emails to Spaces OG groups"
+features[context][] = "spaces-feature-mailgroup"
+features[ctools][] = "context"
+features[menu][] = "mailgroup"
+spaces[types][] = "og"
