@@ -156,13 +156,11 @@ function mailgroup_global_settings() {
     '#title' => t('MailGroup Global Settings'),
     '#type' => 'fieldset',
   );
-  $options = array();
   $hosts = _mailcomment_catchall_hosts();
-  $options = array_combine($hosts, $hosts);
   $form['mailgroup']['mailgroup_mailbox'] = array(
     '#title' => t('MailGroup Master Address'),
     '#type' => 'select',
-    '#options' => $options,
+    '#options' => $hosts,
     '#required' => TRUE,
     '#default_value' => variable_get('mailgroup_mailbox', ''),
     '#description' => t('The mailbox to base all MailGroup mailboxes off of.'),
@@ -172,13 +170,14 @@ function mailgroup_global_settings() {
 
 function mailgroup_message_alter(&$message, $info) {
   // TODO: Use static cache of spaces object if id is same for following message
-  if (variable_get('mailcomment_alter_subjects', 1)) {
-    $event = current($message->notifications['events']);
+  $event = current($message->notifications['events']);
+  if (variable_get('mailcomment_alter_subjects', 1) && in_array($event->objects['node']->type, variable_get('mailcomment_nodetypes', array()))) {
     if (($id = array_pop($event->objects['node']->og_groups)) && $space = spaces_load('og', $id)) {
       if ($subject = $space->controllers->variable->get('mailgroup_subject')) {
         $old = '[' . variable_get('site_name', '') . ']';
         $new = $old . ' ' . "[$subject]";
         $message->subject = str_replace($old, $new, $message->subject);
+        $message->params['mail']['headers']['Reply-To'] = variable_get('mailgroup_mailbox', '');
       }
     }
   }
