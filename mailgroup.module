@@ -1,9 +1,5 @@
 <?php
 
-function mailgroup_init() {
-
-}
-
 /**
  * Assigns OG id and type to incoming message based on group feature's settings
  * 
@@ -65,9 +61,10 @@ function mailgroup_group_settings($groupname) {
   }
 }
 
+/**
+ * Implementation of hook_block()
+ */
 function mailgroup_block($op = 'list', $delta = 0) {
-  // provide block (for user dashboard) to show user simplelist details, 
-  // "You can create new %type posts by sending to %token-group address" and a link to reset token address
   switch ($op) {
     case 'list':
       $blocks['info'] = array('info' => t('MailGroup Information'));
@@ -112,6 +109,7 @@ function mailgroup_menu() {
 }
 
 function mailgroup_features_settings() {
+  // TODO: form validation
   $form = array();
   $form['mailgroup'] = array(
     '#type' => 'fieldset',
@@ -124,6 +122,13 @@ function mailgroup_features_settings() {
       "sd89dk22-foo@example.com" where "sd89dk22" is an automatically created token and "foo" is the address prefix.
       ',
     '#default_value' => variable_get('mailgroup_address', ''),
+  );
+  $form['mailgroup']['mailgroup_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subject name'),
+    '#description' => t('If you chose to "Use mailing list-style subjects" in mailcomment settings, this string will be used in message
+      subjects.  For example, if you enter "Foo" here, message subjects will appear as "[Site Name] [Foo] Title of post".'),
+    '#default_value' => variable_get('mailgroup_subject', ''),
   );
   $feature_map = spaces_features_map('node');
   $item = menu_get_item('node/add');
@@ -138,7 +143,7 @@ function mailgroup_features_settings() {
   $form['mailgroup']['mailgroup_type'] = array(
     '#type' => 'select',
     '#title' => t('Content type'),
-    '#description' => t(''),
+    '#description' => t('Choose which content type incoming messages should become.'),
     '#default_value' => variable_get('mailgroup_type', ''),
     '#options' => $types,
   );
@@ -166,11 +171,17 @@ function mailgroup_global_settings() {
 }
 
 function mailgroup_message_alter(&$message, $info) {
-  // TODO: Alter the subject to include group name, like [Development Seed] [DSI] or [Development Seed] [WFP]
-  // check whether mailcomment variable is set for subject alters
-  // if it is, determine group
-  // insert [foo] ... this could be another setting the user can decide.
-  
+  // TODO: Use static cache of spaces object if id is same for following message
+  if (variable_get('mailcomment_alter_subjects', 1)) {
+    $event = current($message->notifications['events']);
+    if (($id = array_pop($event->objects['node']->og_groups)) && $space = spaces_load('og', $id)) {
+      if ($subject = $space->controllers->variable->get('mailgroup_subject')) {
+        $old = '[' . variable_get('site_name', '') . ']';
+        $new = $old . ' ' . "[$subject]";
+        $message->subject = str_replace($old, $new, $message->subject);
+      }
+    }
+  }
 }
 
 function mailgroup_block_information() {
@@ -194,7 +205,5 @@ function mailgroup_block_information() {
 function mailgroup_page() {
   return 'foo';
 }
-
-
 
 
