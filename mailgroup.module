@@ -1,5 +1,9 @@
 <?php
 
+function mailgroup_init() {
+
+}
+
 /**
  * Assigns OG id and type to incoming message based on group feature's settings
  * 
@@ -108,10 +112,6 @@ function mailgroup_menu() {
 }
 
 function mailgroup_features_settings() {
-  /* 
-   * setting to configure email catchall name (default is based off of group title)
-   * setting to define default content type
-   */
   $form = array();
   $form['mailgroup'] = array(
     '#type' => 'fieldset',
@@ -125,14 +125,16 @@ function mailgroup_features_settings() {
       ',
     '#default_value' => variable_get('mailgroup_address', ''),
   );
-  // @TODO get only the group_post_standards that are for content types of features ENABLED in the given group.
-  // TODO refactor this loop
-  $og_types = og_get_types('group_post_standard');
+  $feature_map = spaces_features_map('node');
+  $item = menu_get_item('node/add');
   $types = array();
-  foreach ($og_types as $type) {
-    $types[$type] = $type;
+  foreach (system_admin_menu_block($item) as $menu_item) {
+    $args = explode('/', $menu_item['href']);
+    $type = str_replace('-', '_', array_pop($args));
+    if (isset($feature_map[$type])) {
+      $types[substr($menu_item['link_path'], 9)] = node_get_types('name', str_replace('-', '_', substr($menu_item['link_path'], 9)));
+    }
   }
-  
   $form['mailgroup']['mailgroup_type'] = array(
     '#type' => 'select',
     '#title' => t('Content type'),
