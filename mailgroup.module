@@ -1,6 +1,5 @@
 <?php
 
-
 /**
  * Assigns OG id and type to incoming message based on group feature's settings
  * 
@@ -150,10 +149,13 @@ function mailgroup_global_settings() {
     '#title' => t('MailGroup Global Settings'),
     '#type' => 'fieldset',
   );
+  $options = array();
+  $hosts = _mailcomment_catchall_hosts();
+  $options = array_combine($hosts, $hosts);
   $form['mailgroup']['mailgroup_mailbox'] = array(
     '#title' => t('MailGroup Master Address'),
     '#type' => 'select',
-    '#options' => mailcomment_mailbox_list(TRUE),
+    '#options' => $options,
     '#required' => TRUE,
     '#default_value' => variable_get('mailgroup_mailbox', ''),
     '#description' => t('The mailbox to base all MailGroup mailboxes off of.'),
@@ -178,7 +180,9 @@ function mailgroup_block_information() {
     $gaddress = variable_get('mailgroup_mailbox', '');
     if ($token && $type && $prefix && $gaddress) {
       $address = "$token-$prefix@$gaddress";
-      $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $address));
+      // TODO: Let the user reset their token here.
+      // TODO: Patch tokenauth to allow for tokens per resource type.
+      $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $type)) . " $address";
       return $content;
     }
   }
