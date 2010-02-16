@@ -191,7 +191,7 @@ function mailgroup_block_information() {
     $prefix = $space->controllers->variable->get('mailgroup_address');
     $gaddress = variable_get('mailgroup_mailbox', '');
     if ($token && $type && $prefix && $gaddress) {
-      $address = "$token-$prefix@$gaddress";
+      $address = "$token-$prefix@" . substr($gaddress, strpos($gaddress, '@') +1);
       // TODO: Let the user reset their token here.
       // TODO: Patch tokenauth to allow for tokens per resource type.
       $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $type)) . " $address";
@@ -202,7 +202,10 @@ function mailgroup_block_information() {
 }
 
 function mailgroup_page() {
-  return 'foo';
+  $output = '';
+  $output .= mailgroup_block_information();
+  $output .= t('Do not share this email address with anyone; it is for your own personal use.');
+  return $output;
 }
 
 
