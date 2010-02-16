@@ -12,7 +12,7 @@ function _mailgroup_context_default_contexts() {
   $context->description = '';
   $context->tag = 'Mail Group';
   $context->conditions = array(
-    'menu' => array(
+    'path' => array(
       'values' => array(
         'mailgroup' => 'mailgroup',
       ),
