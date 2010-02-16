@@ -1,41 +1,6 @@
 <?php
 
 /**
- * Helper to implementation of hook_context_default_contexts().
- */
-function _mailgroup_context_default_contexts() {
-  $export = array();
-  $context = new stdClass;
-  $context->disabled = FALSE; /* Edit this to true to make a default context disabled initially */
-  $context->api_version = 3;
-  $context->name = 'spaces-feature-mailgroup';
-  $context->description = '';
-  $context->tag = 'Mail Group';
-  $context->conditions = array(
-    'menu' => array(
-      'values' => array(
-        'mailgroup' => 'mailgroup',
-      ),
-    ),
-  );
-  $context->reactions = array(
-    'block' => array(
-      'blocks' => array(
-        'mailgroup-info' => array(
-          'module' => 'mailgroup',
-          'delta' => 'info',
-          'region' => 'right',
-          'weight' => 0,
-        ),
-      ),
-    ),
-  );
-
-  $export['spaces-feature-mailgroup'] = $context;
-  return $export;
-}
-
-/**
  * Helper to implementation of hook_ctools_plugin_api().
  */
 function _mailgroup_ctools_plugin_api() {
