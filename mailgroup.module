@@ -1,5 +1,7 @@
 <?php
 
+require('mailgroup.features.inc');
+
 /**
  * Assigns OG id and type to incoming message based on group feature's settings
  * 

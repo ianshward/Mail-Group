@@ -9,8 +9,8 @@ function _mailgroup_context_default_contexts() {
   $context->disabled = FALSE; /* Edit this to true to make a default context disabled initially */
   $context->api_version = 3;
   $context->name = 'spaces-feature-mailgroup';
-  $context->description = '';
-  $context->tag = 'Mail Group';
+  $context->description = 'Mailgroup';
+  $context->tag = 'Mailgroup';
   $context->conditions = array(
     'path' => array(
       'values' => array(
@@ -29,11 +29,12 @@ function _mailgroup_context_default_contexts() {
         ),
       ),
     ),
+    'menu' => 'mailgroup',
   );
-  $context->condition_mode = 0;
+  $context->condition_mode = 1;
 
   $translatables['spaces-feature-mailgroup'] = array(
-    t('Mail Group'),
+    t('Mailgroup'),
   );
 
   $export['spaces-feature-mailgroup'] = $context;
