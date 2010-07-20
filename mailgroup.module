@@ -15,12 +15,12 @@ require('mailgroup.features.inc');
  */
 function mailgroup_mailhandler($node, $result, $i, $header, $mailbox) {
   $groupname = mailgroup_parse_groupname($header);
-  $groupinfo = mailgroup_group_settings($groupname);
-  if ($groupinfo['id'] && $groupinfo['type']) {
+  $groupinfo = mailgroup_get_settings($groupname, 'prefix');
+  if ($groupinfo['id'] && $groupinfo['nodetype']) {
     // The $node->uid should be set by now using mailhandler authentication API
     if (og_is_group_member($groupinfo['id'], TRUE, $node->uid)) {
       $node->og_groups[$groupinfo['id']] = $groupinfo['id'];
-      $node->type = $groupinfo['type'];
+      $node->type = $groupinfo['nodetype'];
     }
   }
   return $node; 
@@ -38,29 +38,6 @@ function mailgroup_mailhandler($node, $result, $i, $header, $mailbox) {
 function mailgroup_parse_groupname($header) {
   $mailbox = $header->to[0]->mailbox;
   return substr($mailbox, strpos($mailbox, "-") +1);
-}
-
-/**
- * Returns the group id based on a group name string.
- * 
- * @param $groupname
- *   String - name of group prefix for email address, parsed from mailgroup_parse_groupname()
- *   
- * @return
- *   Array - contains group id and mailgroup settings.
- */
-function mailgroup_group_settings($groupname) {
-  // TODO: mailgroup should have its own schema, this will get expensive w/ lots of groups.
-  $query = db_query("SELECT id FROM {purl} WHERE provider = 'spaces_og'");
-  while ($id = db_result($query)) {
-    $space = spaces_load('og', $id);
-    $address = $space->controllers->variable->get('mailgroup_address');
-    if ($address === $groupname) {
-      $type = $space->controllers->variable->get('mailgroup_type');
-      $name = $space->group->title; 
-      return array('id' => $space->id, 'type' => $type, 'name' => $name);
-    }
-  }
 }
 
 /**
@@ -240,8 +217,13 @@ function mailgroup_page() {
 /**
  * Returns array of mailgroup settings for specified group
  */
-function mailgroup_get_settings($id) {
-  return db_fetch_array(db_query("SELECT * FROM {mailgroup} WHERE id = %d", $id));
+function mailgroup_get_settings($id, $type = 'id') {
+  if ($type == 'id') {
+    return db_fetch_array(db_query("SELECT * FROM {mailgroup} WHERE id = %d", $id));
+  }
+  else {
+    return db_fetch_array(db_query("SELECT * FROM {mailgroup} WHERE prefix = '%s'", $id));
+  }
 }
 
 
