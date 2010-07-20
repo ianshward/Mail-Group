@@ -86,7 +86,7 @@ function mailgroup_menu() {
   $items['features/mailgroup'] = array(
     'title' => 'Settings',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('mailgroup_features_settings'),
+    'page arguments' => array('mailgroup_features_settings_form'),
     'access callback' => 'spaces_access_admin',
     'access arguments' => array(),
     'type' => MENU_CALLBACK,
@@ -110,27 +110,28 @@ function mailgroup_menu() {
   return $items;
 }
 
-function mailgroup_features_settings() {
-  // TODO: form validation
+function mailgroup_features_settings_form() {
+  $id = spaces_get_space()->id;
+  $settings = mailgroup_get_settings($id);
   $form = array();
   $form['mailgroup'] = array(
     '#type' => 'fieldset',
     '#title' => t('MailGroup Settings'),
   );
-  $form['mailgroup']['mailgroup_address'] = array(
+  $form['mailgroup']['prefix'] = array(
     '#type' => 'textfield',
     '#title' => t('Address prefix'),
     '#description' => 'Define an address prefix.  The final "to" address for the group will be an address like
       "sd89dk22-foo@example.com" where "sd89dk22" is an automatically created token and "foo" is the address prefix.
       ',
-    '#default_value' => variable_get('mailgroup_address', ''),
+    '#default_value' => $settings['prefix'],
   );
-  $form['mailgroup']['mailgroup_subject'] = array(
+  $form['mailgroup']['subject'] = array(
     '#type' => 'textfield',
     '#title' => t('Subject name'),
     '#description' => t('If you chose to "Use mailing list-style subjects" in mailcomment settings, this string will be used in message
       subjects.  For example, if you enter "Foo" here, message subjects will appear as "[Site Name] [Foo] Title of post".'),
-    '#default_value' => variable_get('mailgroup_subject', ''),
+    '#default_value' => $settings['subject'],
   );
   $feature_map = spaces_features_map('node');
   $item = menu_get_item('node/add');
@@ -142,14 +143,40 @@ function mailgroup_features_settings() {
       $types[substr($menu_item['link_path'], 9)] = node_get_types('name', str_replace('-', '_', substr($menu_item['link_path'], 9)));
     }
   }
-  $form['mailgroup']['mailgroup_type'] = array(
+  $form['mailgroup']['nodetype'] = array(
     '#type' => 'select',
     '#title' => t('Content type'),
     '#description' => t('Choose which content type incoming messages should become.'),
-    '#default_value' => variable_get('mailgroup_type', ''),
+    '#default_value' => $settings['nodetype'],
     '#options' => $types,
   );
-  return system_settings_form($form);
+  $form['mailgroup']['id'] = array(
+    '#type' => 'hidden',
+    '#value' => $id,
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+function mailgroup_features_settings_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
+  if (($id = db_result(db_query("SELECT id FROM {mailgroup} WHERE prefix = '%s'", $values['prefix']))) && $id != $values['id']) {
+    form_set_error('prefix', t('Prefix %prefix already in use by another group.  Please enter a different prefix.', array('%prefix' => $values['prefix'])));
+  }
+}
+
+function mailgroup_features_settings_form_submit($form, &$form_state) {
+  if (db_result(db_query("SELECT id FROM {mailgroup} WHERE id = %d", $form_state['values']['id']))) {
+    drupal_write_record('mailgroup', $form_state['values'], 'id');
+    drupal_set_message(t('Mailgroup settings updated.'));
+  }
+  else {
+    drupal_write_record('mailgroup', $form_state['values']);
+    drupal_set_message(t('Mailgroup settings saved'));
+  }
 }
 
 function mailgroup_global_settings() {
@@ -208,6 +235,13 @@ function mailgroup_page() {
   $output .= mailgroup_block_information();
   $output .= t('Do not share this email address with anyone; it is for your own personal use.');
   return $output;
+}
+
+/**
+ * Returns array of mailgroup settings for specified group
+ */
+function mailgroup_get_settings($id) {
+  return db_fetch_array(db_query("SELECT * FROM {mailgroup} WHERE id = %d", $id));
 }
 
 

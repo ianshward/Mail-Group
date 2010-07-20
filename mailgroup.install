@@ -1,0 +1,53 @@
+<?php
+
+// $Id$
+
+/**
+ * Implementation of hook_install().
+ */
+function mailgroup_install() {
+  drupal_install_schema('mailgroup');
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function mailgroup_uninstall() {
+  drupal_uninstall_schema('mailgroup');
+}
+
+/**
+ * Implementation of hook_schema
+ */
+ function mailgroup_schema() {
+  $schema['mailgroup'] = array(
+    'description' => t('Mailgroup table'),
+    'fields' => array(
+      'id' => array(
+        'description' => t('The ID of the group_nid (og).'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'prefix' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'subject' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'nodetype' => array(
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('id'),
+    );
+
+  return $schema;
+}
