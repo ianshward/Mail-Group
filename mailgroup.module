@@ -16,14 +16,18 @@ require('mailgroup.features.inc');
 function mailgroup_mailhandler($node, $result, $i, $header, $mailbox) {
   $groupname = mailgroup_parse_groupname($header);
   $groupinfo = mailgroup_get_settings($groupname, 'prefix');
-  if ($groupinfo['id'] && $groupinfo['nodetype']) {
-    // The $node->uid should be set by now using mailhandler authentication API
-    if (og_is_group_member($groupinfo['id'], TRUE, $node->uid)) {
-      $node->og_groups[$groupinfo['id']] = $groupinfo['id'];
-      $node->type = $groupinfo['nodetype'];
+  $space = spaces_load('og', $groupinfo['id']);
+  $features = $space->controllers->variable->get('spaces_features');
+  if ($features['mailgroup']) {
+    if ($groupinfo['id'] && $groupinfo['nodetype']) {
+      // The $node->uid should be set by now using mailhandler authentication API
+      if (og_is_group_member($groupinfo['id'], TRUE, $node->uid)) {
+        $node->og_groups[$groupinfo['id']] = $groupinfo['id'];
+        $node->type = $groupinfo['nodetype'];
+      }
     }
   }
-  return $node; 
+  return $node;
 }
 
 /**
