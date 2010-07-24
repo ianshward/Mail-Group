@@ -1,0 +1,8 @@
+.mailgroup-address {
+  display: inline;
+}
+a.mailgroup-address-generate {
+  display: block;
+  text-align: right;
+  width: 100%;
+}

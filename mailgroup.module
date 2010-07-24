@@ -3,6 +3,8 @@
 require('mailgroup.features.inc');
 
 /**
+ * Implementation of hook_mailhandler()
+ * 
  * Assigns OG id and type to incoming message based on group feature's settings
  * 
  * @param $node
@@ -87,6 +89,12 @@ function mailgroup_menu() {
     'access arguments' => array('view', 'mailgroup'),
     'type' => MENU_NORMAL_ITEM,
     'menu_name' => 'features',
+  );
+  $items['mailgroup/tokenauth_reset'] = array(
+    'title' => 'Reset tokenauth token',
+    'page callback' => 'mailgroup_tokenauth_reset',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK, 
   );
   return $items;
 }
@@ -199,13 +207,10 @@ function mailgroup_block_information() {
     $token = tokenauth_get_token($user->uid);
     $type = $space->controllers->variable->get('mailgroup_type');
     $prefix = $space->controllers->variable->get('mailgroup_address');
-    $gaddress = variable_get('mailgroup_mailbox', '');
-    if ($token && $type && $prefix && $gaddress) {
-      $address = "$token-$prefix@" . substr($gaddress, strpos($gaddress, '@') +1);
-      // TODO: Let the user reset their token here.
-      // TODO: Patch tokenauth to allow for tokens per resource type.
-      $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $type)) . " $address";
-      return $content;
+    $groupaddress = variable_get('mailgroup_mailbox', '');
+    if ($token && $type && $prefix && $groupaddress) {
+      $address = "$token-$prefix@" . substr($groupaddress, strpos($groupaddress, '@') +1);
+      return theme('mailgroup_block_information', $type, $address, $token, $prefix);
     }
   }
   return FALSE;
@@ -213,7 +218,8 @@ function mailgroup_block_information() {
 
 function mailgroup_page() {
   $output = '';
-  $output .= mailgroup_block_information();
+  // TODO: Causes js settings to get added twice.
+  //$output .= mailgroup_block_information();
   $output .= t('Do not share this email address with anyone; it is for your own personal use.');
   return $output;
 }
@@ -230,4 +236,39 @@ function mailgroup_get_settings($id, $type = 'id') {
   }
 }
 
+function mailgroup_tokenauth_reset() {
+  tokenauth_user_reset();
+  print tokenauth_get_token();
+  exit;
+}
 
+/**
+ * Implementation of hook_theme()
+ */
+function mailgroup_theme() {
+  return array(
+    'mailgroup_block_information' => array(
+      'type' => '',
+      'address' => '',
+      'token' => '',
+      'prefix' => '',
+    ),
+  );
+}
+
+/**
+ * Theme function for mailgroup_block_information
+ */
+function theme_mailgroup_block_information($type, $address, $token, $prefix) {
+  // Strip down to just the base domain to make AJAX replacement easier.
+  $domain = substr($address, strpos($address, '@') +1);
+  drupal_add_js(array('mailgroup' => array(
+    'prefix' => $prefix,
+    'domain' => $domain,
+  )), 'setting');
+  drupal_add_js(drupal_get_path('module', 'mailgroup') .'/mailgroup.js', 'module');
+  drupal_add_css(drupal_get_path('module', 'mailgroup') .'/mailgroup.css');
+  $content = t('You may create new @type posts by sending an email to the following address:', array('@type' => $type)) . " <div class='mailgroup-address'>$address</div>";
+  $content .= l(t('Generate new address'), 'mailgroup/tokenauth_reset', array('attributes' => array('class' => 'mailgroup-address-generate')));
+  return $content;
+}
